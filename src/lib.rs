@@ -4,10 +4,7 @@ use std::str;
 
 extern crate reqwest;
 
-use base64::{decode, encode};
-use reqwest::header::{HeaderMap, HeaderValue};
-use serde::Deserialize;
-use url::Url;
+use serde::Serialize;
 
 #[derive(Debug, Default)]
 pub struct Gist {
@@ -19,15 +16,20 @@ pub struct Gist {
     end: i32,
 }
 
-/// Github file content response
-// #[derive(Deserialize)]
-// pub struct ContentResponse {
-//     name: String,
-//     content: String,
-// }
+#[derive(Debug, Serialize)]
+pub struct File {
+    content: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Payload {
+    description: String,
+    files: HashMap<String, File>,
+    public: bool,
+}
 
 /// Get lines in a range
-pub fn get_content(link: &str) -> Result<String, Box<dyn Error>> {
+pub fn get_content(link: &str, start: usize, mut end: usize) -> Result<String, Box<dyn Error>> {
     let client = reqwest::Client::new();
     let res: String = client
         .get(link)
@@ -36,77 +38,103 @@ pub fn get_content(link: &str) -> Result<String, Box<dyn Error>> {
         .send()?
         .text()?;
 
-    // fake
-    let start = 10;
-    let end = 15;
-
     // 跳过start前的行
     let mut lines = res.lines().skip(start - 1);
     let mut ret: Vec<String> = Vec::new();
 
-    for n in start..=end {
+    // @todo: may be better way to select lines
+    for _ in start - 1..=end - 1 {
         let line = lines.next().unwrap();
         ret.push(String::from(line));
     }
 
-    // 重新拼接\n
+    // join lines
     Ok(ret.join("\n"))
 }
 
-/// 根据github文件地址生成gist
-/// includes: line range
-pub fn generate(link: &str) -> &str {
-    return "gist url";
-}
-
-/// 46d5465b35188ddf03bd884220b1bb5934461bf2
+/// Parse a github repo url to get file meta
+///
 /// Example url: https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16
 ///                                | user | repo |   refer   |        path     |
-///
 impl Gist {
-    pub fn parse(link: &str) -> Result<Option<Gist>, Box<dyn Error>> {
-        let file_url_object = Url::parse(link)?;
-        let path = file_url_object.path();
+    pub fn parse(path: &str) -> Result<Option<Gist>, Box<dyn Error>> {
+        // currently must specify line range
         let re =
-            regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+)#L(?P<start>\d+)-L(?P<end>\d+)$")?;
+            regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+?)#L(?P<start>\d+)-L(?P<end>\d+)$")?;
+
         let gist = match re.captures(path) {
-            Some(caps) => Some(Gist {
-                user: String::from(caps.name("user").unwrap().as_str()),
-                repo: String::from(caps.name("repo").unwrap().as_str()),
-                refer: String::from(caps.name("refer").unwrap().as_str()),
-                path: String::from(caps.name("file").unwrap().as_str()),
-                start: 0,
-                end: 0,
-            }),
+            Some(caps) => {
+                let start: i32 = match caps.name("start") {
+                    Some(value) => value.as_str().parse().unwrap(),
+                    None => 0,
+                };
+
+                let end: i32 = match caps.name("end") {
+                    Some(value) => value.as_str().parse().unwrap(),
+                    None => 0,
+                };
+
+                Some(Gist {
+                    user: String::from(caps.name("user").unwrap().as_str()),
+                    repo: String::from(caps.name("repo").unwrap().as_str()),
+                    refer: String::from(caps.name("refer").unwrap().as_str()),
+                    path: String::from(caps.name("file").unwrap().as_str()),
+                    start,
+                    end,
+                })
+            }
             // @todo:
             None => None,
         };
-
         Ok(gist)
     }
 
-    pub fn create(&self) {}
+    pub fn create(&self) -> Result<(), Box<dyn Error>> {
+        let client = reqwest::Client::new();
+        // /repos/aliast/online-ide-discovery/contents/README.md
+        let file_url = format!(
+            "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
+            self.user, self.repo, self.path, self.refer
+        );
+        let content =
+            get_content(file_url.as_str(), self.start as usize, self.end as usize).unwrap();
+        // use github token to create gists
+        let mut map = HashMap::new();
+        map.insert(String::from("gists.js"), File { content });
+        let payload = Payload {
+            public: true,
+            description: String::from(""),
+            files: map,
+        };
+
+        let res = client
+            .post("https://api.github.com/gists")
+            .header(
+                "Authorization",
+                "token 9b113ea3b2a00caa8016d0dceeb75dd1f777cb7a",
+            )
+            .json(&payload)
+            .send()?;
+        println!("{:?}", res);
+        Ok(())
+    }
+}
+
+#[test]
+fn test_create() {
+    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L16").unwrap()
+    {
+        gist.create().unwrap();
+    }
 }
 
 #[test]
 fn test_parse() {
-    if let Some(gist) =
-        Gist::parse("https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16")
-            .unwrap()
+    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L16").unwrap()
     {
         assert!(gist.user == "AliasT");
         assert!(gist.repo == "public");
         assert!(gist.refer == "master");
         assert!(gist.path == "lib/react.cjs.js");
-        assert!(gist.start == 14);
-        assert!(gist.end == 16);
     }
-}
-
-#[test]
-fn test_get_content() {
-    let res =
-        get_content("https://api.github.com/repos/aliast/online-ide-discovery/contents/README.md")
-            .unwrap();
-    println!("{}", res)
 }
