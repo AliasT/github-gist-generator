@@ -68,7 +68,7 @@ impl Gist {
         let file_url_object = Url::parse(link)?;
         let path = file_url_object.path();
         let re =
-            regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+)$")?;
+            regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+)#L(?P<start>\d+)-L(?P<end>\d+)$")?;
         let gist = match re.captures(path) {
             Some(caps) => Some(Gist {
                 user: String::from(caps.name("user").unwrap().as_str()),
@@ -98,6 +98,8 @@ fn test_parse() {
         assert!(gist.repo == "public");
         assert!(gist.refer == "master");
         assert!(gist.path == "lib/react.cjs.js");
+        assert!(gist.start == 14);
+        assert!(gist.end == 16);
     }
 }
 
