@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 use std::error::Error;
-use url::Url;
+use std::str;
+
 extern crate reqwest;
+
 use base64::{decode, encode};
+use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
+use url::Url;
 
 #[derive(Debug, Default)]
 pub struct Gist {
@@ -16,16 +20,37 @@ pub struct Gist {
 }
 
 /// Github file content response
-#[derive(Deserialize)]
-pub struct ContentResponse {
-    name: String,
-    content: String,
-}
+// #[derive(Deserialize)]
+// pub struct ContentResponse {
+//     name: String,
+//     content: String,
+// }
 
-pub fn get_content(link: &str) -> Result<ContentResponse, Box<dyn Error>> {
-    let res: ContentResponse = reqwest::get(link)?.json()?;
-    println!("{:?}", res.content);
-    Ok(res)
+/// Get lines in a range
+pub fn get_content(link: &str) -> Result<String, Box<dyn Error>> {
+    let client = reqwest::Client::new();
+    let res: String = client
+        .get(link)
+        // 发送accept请求头，获取原数据
+        .header("Accept", "application/vnd.github.raw")
+        .send()?
+        .text()?;
+
+    // fake
+    let start = 10;
+    let end = 15;
+
+    // 跳过start前的行
+    let mut lines = res.lines().skip(start - 1);
+    let mut ret: Vec<String> = Vec::new();
+
+    for n in start..=end {
+        let line = lines.next().unwrap();
+        ret.push(String::from(line));
+    }
+
+    // 重新拼接\n
+    Ok(ret.join("\n"))
 }
 
 /// 根据github文件地址生成gist
@@ -81,5 +106,5 @@ fn test_get_content() {
     let res =
         get_content("https://api.github.com/repos/aliast/online-ide-discovery/contents/README.md")
             .unwrap();
-    assert!(res.name == "README.md")
+    println!("{}", res)
 }
