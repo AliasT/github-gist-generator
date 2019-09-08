@@ -9,11 +9,11 @@ extern crate reqwest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
-pub struct Gist {
-    user: String,
-    repo: String,
-    refer: String,
-    path: String,
+pub struct Gist<'a> {
+    user: &'a str,
+    repo: &'a str,
+    refer: &'a str,
+    path: &'a str,
     start: i32,
     end: i32,
 }
@@ -63,7 +63,7 @@ pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<d
 ///
 /// Example url: https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16
 ///                                | user | repo |   refer   |        path     |
-impl Gist {
+impl<'a> Gist<'a> {
     pub fn parse(path: &str) -> Result<Option<Gist>, Box<dyn Error>> {
         // currently must specify line range
         let re =
@@ -82,10 +82,10 @@ impl Gist {
                 };
 
                 Some(Gist {
-                    user: String::from(caps.name("user").unwrap().as_str()),
-                    repo: String::from(caps.name("repo").unwrap().as_str()),
-                    refer: String::from(caps.name("refer").unwrap().as_str()),
-                    path: String::from(caps.name("file").unwrap().as_str()),
+                    user: caps.name("user").unwrap().as_str(),
+                    repo: caps.name("repo").unwrap().as_str(),
+                    refer: caps.name("refer").unwrap().as_str(),
+                    path: caps.name("file").unwrap().as_str(),
                     start,
                     end,
                 })
