@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
@@ -24,15 +25,15 @@ pub struct File {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Payload {
-    description: String,
-    files: HashMap<String, File>,
+pub struct Payload<'a> {
+    description: &'a str,
+    files: HashMap<&'a str, File>,
     public: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GistResponse {
-    html_url: String,
+pub struct GistResponse<'a> {
+    html_url: Cow<'a, str>,
 }
 
 /// Get lines in a range
@@ -47,12 +48,12 @@ pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<d
 
     // 跳过start前的行
     let mut lines = res.lines().skip(start - 1);
-    let mut ret: Vec<String> = Vec::new();
+    let mut ret: Vec<&str> = Vec::new();
 
     // @todo: may be better way to select lines
     for _ in start - 1..=end - 1 {
         let line = lines.next().unwrap();
-        ret.push(String::from(line));
+        ret.push(line);
     }
 
     // join lines
@@ -63,7 +64,7 @@ pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<d
 ///
 /// Example url: https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16
 ///                                | user | repo |   refer   |        path     |
-impl<'a> Gist<'a> {
+impl<'a, 'b> Gist<'a> {
     pub fn parse(path: &str) -> Result<Option<Gist>, Box<dyn Error>> {
         // currently must specify line range
         let re =
@@ -96,7 +97,7 @@ impl<'a> Gist<'a> {
         Ok(gist)
     }
 
-    pub fn create(&self) -> Result<String, Box<dyn Error>> {
+    pub fn create(&self) -> Result<Cow<str>, Box<dyn Error>> {
         // dotenv parse
         dotenv::dotenv().ok();
         let client = reqwest::Client::new();
@@ -109,10 +110,10 @@ impl<'a> Gist<'a> {
             get_content(file_url.as_str(), self.start as usize, self.end as usize).unwrap();
         // use github token to create gists
         let mut map = HashMap::new();
-        map.insert(String::from("gists.js"), File { content });
+        map.insert("gists.js", File { content });
         let payload = Payload {
             public: true,
-            description: String::from(""),
+            description: "",
             files: map,
         };
         let username = env::var("USERNAME").unwrap();
@@ -123,6 +124,7 @@ impl<'a> Gist<'a> {
             .json(&payload)
             .send()?
             .json()?;
+
         Ok(res.html_url)
     }
 }
