@@ -6,7 +6,7 @@ use std::str;
 extern crate dotenv;
 extern crate reqwest;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
 pub struct Gist {
@@ -30,8 +30,13 @@ pub struct Payload {
     public: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GistResponse {
+    html_url: String,
+}
+
 /// Get lines in a range
-pub fn get_content(link: &str, start: usize, mut end: usize) -> Result<String, Box<dyn Error>> {
+pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<dyn Error>> {
     let client = reqwest::Client::new();
     let res: String = client
         .get(link)
@@ -91,7 +96,7 @@ impl Gist {
         Ok(gist)
     }
 
-    pub fn create(&self) -> Result<(), Box<dyn Error>> {
+    pub fn create(&self) -> Result<String, Box<dyn Error>> {
         // dotenv parse
         dotenv::dotenv().ok();
         let client = reqwest::Client::new();
@@ -112,13 +117,13 @@ impl Gist {
         };
         let username = env::var("USERNAME").unwrap();
         let token = env::var("TOKEN").unwrap();
-        let res = client
+        let res: GistResponse = client
             .post("https://api.github.com/gists")
             .basic_auth(username, Some(token))
             .json(&payload)
-            .send()?;
-        println!("{:?}", res);
-        Ok(())
+            .send()?
+            .json()?;
+        Ok(res.html_url)
     }
 }
 
