@@ -20,14 +20,14 @@ pub struct Gist<'a> {
 }
 
 #[derive(Debug, Serialize)]
-pub struct File {
-    content: String,
+pub struct File<'a> {
+    content: &'a str,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Payload<'a> {
     description: &'a str,
-    files: HashMap<&'a str, File>,
+    files: HashMap<&'a str, File<'a>>,
     public: bool,
 }
 
@@ -110,7 +110,12 @@ impl<'a, 'b> Gist<'a> {
             get_content(file_url.as_str(), self.start as usize, self.end as usize).unwrap();
         // use github token to create gists
         let mut map = HashMap::new();
-        map.insert("gists.js", File { content });
+        map.insert(
+            "gists.js",
+            File {
+                content: content.as_str(),
+            },
+        );
         let payload = Payload {
             public: true,
             description: "",
