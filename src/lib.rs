@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::str;
 
+extern crate dotenv;
 extern crate reqwest;
 
 use serde::Serialize;
@@ -90,6 +92,8 @@ impl Gist {
     }
 
     pub fn create(&self) -> Result<(), Box<dyn Error>> {
+        // dotenv parse
+        dotenv::dotenv().ok();
         let client = reqwest::Client::new();
         // /repos/aliast/online-ide-discovery/contents/README.md
         let file_url = format!(
@@ -106,13 +110,11 @@ impl Gist {
             description: String::from(""),
             files: map,
         };
-
+        let username = env::var("USERNAME").unwrap();
+        let token = env::var("TOKEN").unwrap();
         let res = client
             .post("https://api.github.com/gists")
-            .header(
-                "Authorization",
-                "token 9b113ea3b2a00caa8016d0dceeb75dd1f777cb7a",
-            )
+            .basic_auth(username, Some(token))
             .json(&payload)
             .send()?;
         println!("{:?}", res);
@@ -130,7 +132,7 @@ fn test_create() {
 
 #[test]
 fn test_parse() {
-    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L16").unwrap()
+    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L25").unwrap()
     {
         assert!(gist.user == "AliasT");
         assert!(gist.repo == "public");
