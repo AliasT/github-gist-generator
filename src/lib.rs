@@ -65,7 +65,7 @@ pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<d
 /// Example url: https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16
 ///                                | user | repo |   refer   |        path     |
 impl<'a, 'b> Gist<'a> {
-    pub fn parse(path: &str) -> Result<Option<Gist>, Box<dyn Error>> {
+    pub fn parse(path: &str) -> Result<Gist, Box<dyn Error>> {
         // currently must specify line range
         let re =
             regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+?)#L(?P<start>\d+)-L(?P<end>\d+)$")?;
@@ -82,17 +82,16 @@ impl<'a, 'b> Gist<'a> {
                     None => 0,
                 };
 
-                Some(Gist {
+                Gist {
                     user: caps.name("user").unwrap().as_str(),
                     repo: caps.name("repo").unwrap().as_str(),
                     refer: caps.name("refer").unwrap().as_str(),
                     path: caps.name("file").unwrap().as_str(),
                     start,
                     end,
-                })
+                }
             }
-            // @todo:
-            None => None,
+            None => panic!("no matches"),
         };
         Ok(gist)
     }
@@ -136,19 +135,15 @@ impl<'a, 'b> Gist<'a> {
 
 #[test]
 fn test_create() {
-    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L16").unwrap()
-    {
-        gist.create().unwrap();
-    }
+    let gist = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L16").unwrap();
+    gist.create().unwrap();
 }
 
 #[test]
 fn test_parse() {
-    if let Some(gist) = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L25").unwrap()
-    {
-        assert!(gist.user == "AliasT");
-        assert!(gist.repo == "public");
-        assert!(gist.refer == "master");
-        assert!(gist.path == "lib/react.cjs.js");
-    }
+    let gist = Gist::parse("/AliasT/public/blob/master/lib/react.cjs.js#L14-L25").unwrap();
+    assert!(gist.user == "AliasT");
+    assert!(gist.repo == "public");
+    assert!(gist.refer == "master");
+    assert!(gist.path == "lib/react.cjs.js");
 }
