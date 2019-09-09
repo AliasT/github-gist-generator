@@ -1,5 +1,3 @@
-#![feature(result_map_or_else)]
-
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
