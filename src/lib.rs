@@ -1,11 +1,10 @@
+use dotenv;
+use reqwest;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::str;
-
-extern crate dotenv;
-extern crate reqwest;
 
 use serde::{Deserialize, Serialize};
 
@@ -71,16 +70,18 @@ impl<'a, 'b> Gist<'a> {
             regex::Regex::new(r"/(?P<user>.+?)/(?P<repo>.+?)/blob/(?P<refer>.+?)/(?P<file>.+?)#L(?P<start>\d+)-L(?P<end>\d+)$")?;
 
         let gist = match re.captures(path) {
-            Some(caps) => {
-                Gist {
-                    user: caps.name("user").unwrap().as_str(),
-                    repo: caps.name("repo").unwrap().as_str(),
-                    refer: caps.name("refer").unwrap().as_str(),
-                    path: caps.name("file").unwrap().as_str(),
-                    start: caps.name("start").map_or(0, |v| v.as_str().parse::<i32>().unwrap()),
-                    end: caps.name("end").map_or(0, |v| v.as_str().parse::<i32>().unwrap())
-                }
-            }
+            Some(caps) => Gist {
+                user: caps.name("user").unwrap().as_str(),
+                repo: caps.name("repo").unwrap().as_str(),
+                refer: caps.name("refer").unwrap().as_str(),
+                path: caps.name("file").unwrap().as_str(),
+                start: caps
+                    .name("start")
+                    .map_or(0, |v| v.as_str().parse::<i32>().unwrap()),
+                end: caps
+                    .name("end")
+                    .map_or(0, |v| v.as_str().parse::<i32>().unwrap()),
+            },
             None => panic!("no matches"),
         };
         Ok(gist)
