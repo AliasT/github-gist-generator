@@ -1,3 +1,5 @@
+#![feature(result_map_or_else)]
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
@@ -72,23 +74,13 @@ impl<'a, 'b> Gist<'a> {
 
         let gist = match re.captures(path) {
             Some(caps) => {
-                let start: i32 = match caps.name("start") {
-                    Some(value) => value.as_str().parse().unwrap(),
-                    None => 0,
-                };
-
-                let end: i32 = match caps.name("end") {
-                    Some(value) => value.as_str().parse().unwrap(),
-                    None => 0,
-                };
-
                 Gist {
                     user: caps.name("user").unwrap().as_str(),
                     repo: caps.name("repo").unwrap().as_str(),
                     refer: caps.name("refer").unwrap().as_str(),
                     path: caps.name("file").unwrap().as_str(),
-                    start,
-                    end,
+                    start: caps.name("start").map_or(0, |v| v.as_str().parse::<i32>().unwrap()),
+                    end: caps.name("end").map_or(0, |v| v.as_str().parse::<i32>().unwrap())
                 }
             }
             None => panic!("no matches"),
