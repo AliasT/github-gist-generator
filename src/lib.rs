@@ -63,7 +63,7 @@ pub fn get_content(link: &str, start: usize, end: usize) -> Result<String, Box<d
 ///
 /// Example url: https://github.com/AliasT/public/blob/master/lib/react.cjs.js#L14-L16
 ///                                | user | repo |   refer   |        path     |
-impl<'a, 'b> Gist<'a> {
+impl<'a> Gist<'a> {
     pub fn parse(path: &str) -> Result<Gist, Box<dyn Error>> {
         // currently must specify line range
         let re =
